@@ -51,6 +51,10 @@
   :group 'yasnippet-org
   :type 'string)
 
+(defcustom yasnippet-org-verbose nil
+  "If t, print a message when generate file."
+  :type 'boolean)
+
 (defvar yasnippet-org--file-buffer nil)
 
 (defun yasnippet-org-file-buffer ()
@@ -101,7 +105,9 @@
                          (goto-char (match-beginning 0))))
                      (org-element-src-block-parser (point-max) nil)))))
         (unless src
-          (error "Node %s/%s has no src block" parent-directory title))
+          (error "Node %s%s has no src block" parent-directory title))
+        (when yasnippet-org-verbose
+          (message "Generate %s%s..." parent-directory title))
         (let* ((file (expand-file-name title (expand-file-name parent-directory yasnippet-org-generate-root)))
                (srcbody (org-remove-indentation (plist-get (cadr src) :value))))
           (with-temp-file file
