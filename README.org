@@ -2,6 +2,8 @@
 
 Generate yasnippet templates from org document.
 
+Inspire by org-generate
+
 ** Install
 
 via el-get

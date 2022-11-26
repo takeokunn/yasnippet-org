@@ -25,7 +25,6 @@
 
 ;; Generate yasnippet templates from org document.
 
-
 ;;; Code:
 
 (require 'subr-x)
