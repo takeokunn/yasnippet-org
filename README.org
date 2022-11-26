@@ -30,6 +30,7 @@ Inspired by [[https://melpa.org/#/org-generate][org-generate]].
 ** Usage
 
 [1] Create =~/.emacs.d/yasnippets.org= .
+
 [2] Edit =~/.emacs.d/yasnippets.org= like below.
 
 #+begin_src org
