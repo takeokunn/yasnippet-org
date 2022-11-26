@@ -13,8 +13,8 @@ via el-get
 
 ** Usage
 
-1. Create ~\~/.emacs.d/yasnippets.org~ .
-2. Edit ~\~/.emacs.d/yasnippets.org~ like below.
+1. Create =~/.emacs.d/yasnippets.org= .
+2. Edit =~/.emacs.d/yasnippets.org= like below.
 
 #+begin_src org
   ,* snippets
@@ -36,7 +36,7 @@ via el-get
        ,#+end_src
 #+end_src
 
-3. Run ~~M-x yasnippet-org~.
+3. Run =M-x yasnippet-org=.
 
 #+begin_src shell
   snippets/
@@ -45,7 +45,7 @@ via el-get
       └── case
 #+end_src
 
-4. Run ~M-x yas-reload-all~ for reload yasnippet.
+4. Run =M-x yas-reload-all= for reload yasnippet.
 
 ** Author
 
