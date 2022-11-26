@@ -5,7 +5,7 @@
 ;; Author: Takeo Obara <bararararatty@gmail.com>
 ;; Version: 1.0.0
 ;; Keywords: convenience
-;; Package-Requires: ((emacs "26.1") (org "9.5") (mustache "0.24"))
+;; Package-Requires: ((emacs "26.1") (org "9.5"))
 ;; URL: https://github.com/takeokunn/yasnippet-org.el
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -31,14 +31,18 @@
 (require 'subr-x)
 (require 'org)
 (require 'org-element)
-(require 'mustache)
 
 (defgroup yasnippet-org nil
   "Generate yasnippet templates from org document."
   :group 'convenience
   :link '(url-link :tag "Github" "https://github.com/takeokunn/yasnippet-org"))
 
-(defcustom yasnippet-org-file (locate-user-emacs-file "yasnippet.org")
+(defcustom yasnippet-org-file (locate-user-emacs-file "yasnippets.org")
+  "File template definition path."
+  :group 'yasnippet-org
+  :type 'string)
+
+(defcustom yasnippet-org-generate-root (locate-user-emacs-file "snippets")
   "File template definition path."
   :group 'yasnippet-org
   :type 'string)
@@ -46,10 +50,8 @@
 (defcustom yasnippet-org-target "snippet"
   "yasnippet.org h1 tag"
   :group 'yasnippet-org
-  :type 'boolean)
+  :type 'string)
 
-(defvar yasnippet-org-root nil)
-(defvar yasnippet-org-mustache-info nil)
 (defvar yasnippet-org--file-buffer nil)
 
 (defun yasnippet-org-file-buffer ()
@@ -58,16 +60,6 @@
            yasnippet-org--file-buffer)
       (setq yasnippet-org--file-buffer
             (find-file-noselect yasnippet-org-file))))
-
-(defun yasnippet-org--hash-table-from-alist (alist)
-  "Create hash table from ALIST."
-  (let ((h (make-hash-table :test 'equal)))
-    ;; the first key-value pair in an alist gets precedence, so we
-    ;; start from the end of the list:
-    (dolist (pair (reverse alist) h)
-      (let ((key (car pair))
-            (value (cdr pair)))
-        (puthash key value h)))))
 
 (defun yasnippet-org-get-heading ()
   "Get `org' heading."
@@ -87,103 +79,57 @@
 
 (defun yasnippet-org-search-heading (queue)
   "Search QUEUE from `yasnippet-org-get-heading'."
-  (let* ((fn (lambda (h seq)
-               (cl-find-if
-                (lambda (elm)
-                  (cl-find-if
-                   (lambda (e)
-                     (string= h (plist-get e :raw-value)))
-                   elm))
-                seq)))
-         (lst (split-string queue "/"))
-         (h1 (nth 0 lst))
-         (h2 (nth 1 lst)))
-    (when-let* ((tmp (funcall fn h1 (yasnippet-org-get-heading)))
-                (tmp (funcall fn h2 tmp)))
-      tmp)))
+  (when-let* ((fn (lambda (h seq)
+                    (cl-find-if
+                     (lambda (elm)
+                       (cl-find-if
+                        (lambda (e)
+                          (string= h (plist-get e :raw-value)))
+                        elm))
+                     seq)))
+              (tmp (funcall fn queue (yasnippet-org-get-heading))))
+    tmp))
 
-(defun yasnippet-org-1 (root heading)
-  "Generate file from HEADING.
-If ROOT is non-nil, omit some conditions."
-  (if root
-      (dolist (elm heading)
-        (yasnippet-org-1 nil elm))
-    (when-let* ((heading* (car-safe heading))
-                (title (plist-get heading* :title))
-                (title* (mustache-render title yasnippet-org-mustache-info)))
-      (when (and (not (string-suffix-p "/" title*)) (cdr heading))
-        (error "Heading %s is not suffixed \"/\", but it have childlen" title*))
-      (when (string-empty-p title*)
-        (error "Heading %s will be empty string.  We could not create file with empty name" title))
-      (if (string-suffix-p "/" title*)
-          (mkdir (expand-file-name title* default-directory) 'parent)
-        (let ((src
-               (save-excursion
-                 (save-restriction
-                   (narrow-to-region
-                    (plist-get heading* :begin) (plist-get heading* :end))
-                   (goto-char (point-min))
-                   (let ((case-fold-search t))
-                     (when (search-forward "#+begin_src" nil 'noerror)
-                       (goto-char (match-beginning 0))))
-                   (org-element-src-block-parser (point-max) nil)))))
-          (unless src
-            (error "Node %s has no src block" title*))
-          (let* ((file (expand-file-name title* default-directory))
-                 (srcbody (org-remove-indentation (plist-get (cadr src) :value)))
-                 (srcbody* (mustache-render srcbody yasnippet-org-mustache-info)))
-            (with-temp-file file
-              (insert srcbody*)))))
-      (dolist (elm (cdr heading))
-        (let ((default-directory
-               (expand-file-name title* default-directory)))
-          (yasnippet-org-1 nil elm))))))
+(defun yasnippet-org-1 (heading parent)
+  "Generate file from HEADING."
+  (when-let* ((heading* (car-safe heading))
+              (title (plist-get heading* :title)))
+    (when (and (not (string-suffix-p "/" title))
+               (cdr heading))
+      (error "Heading %s is not suffixed \"/\", but it have childlen" title))
+    (when (string-empty-p title)
+      (error "Heading %s will be empty string.  We could not create file with empty name" title))
+    (if (string-suffix-p "/" title)
+        (progn
+          (mkdir (expand-file-name title yasnippet-org-generate-root) 'parent)
+          (dolist (elm (cdr heading))
+            (yasnippet-org-1 elm title)))
+      (let ((src (save-excursion
+                   (save-restriction
+                     (narrow-to-region
+                      (plist-get heading* :begin) (plist-get heading* :end))
+                     (goto-char (point-min))
+                     (let ((case-fold-search t))
+                       (when (search-forward "#+begin_src" nil 'noerror)
+                         (goto-char (match-beginning 0))))
+                     (org-element-src-block-parser (point-max) nil)))))
+        (unless src
+          (error "Node #s#%s has no src block" parent title))
+        (let* ((file (expand-file-name title (expand-file-name parent yasnippet-org-generate-root)))
+               (srcbody (org-remove-indentation (plist-get (cadr src) :value))))
+          (with-temp-file file
+            (insert srcbody)))))))
 
 ;;;###autoload
 (defun yasnippet-org ()
   "Generate yasnippet templates from org document."
   (interactive)
-  (let ((dir default-directory)
-        export-buffer)
-    (with-current-buffer (yasnippet-org-file-buffer)
-      (let ((heading (yasnippet-org-search-heading yasnippet-org-target)))
-        (unless heading
-          (error "%s is not defined at %s" yasnippet-org-target yasnippet-org-file))
-        (unwind-protect
-            (let* ((fn (lambda (elm)
-                         (org-entry-get-multivalued-property
-                          (plist-get (car heading) :begin)
-                          (symbol-name elm))))
-                   (root (funcall fn 'yasnippet-org-root))
-                   (vars (funcall fn 'yasnippet-org-variable))
-                   (beforehooks (funcall fn 'yasnippet-org-before-hook))
-                   (afterhooks  (funcall fn 'yasnippet-org-after-hook)))
-              (setq root (expand-file-name
-                          (or yasnippet-org-root
-                              (car root)
-                              (read-file-name "Generate root: " dir))))
-              (unless (file-directory-p root)
-                (error "%s is not directory" root))
-              (let ((default-directory root)
-                    (yasnippet-org-mustache-info
-                     (or yasnippet-org-mustache-info
-                         (yasnippet-org--hash-table-from-alist
-                          (mapcar (lambda (elm)
-                                    (cons elm (read-string (format "%s: " elm))))
-                                  vars)))))
-                (when beforehooks
-                  (dolist (elm beforehooks)
-                    (funcall (intern elm))))
-
-                (yasnippet-org-1 t heading)
-
-                (when afterhooks
-                  (dolist (elm afterhooks)
-                    (funcall (intern elm))))
-                (when (called-interactively-p 'interactive)
-                  (dired root))))
-          (when export-buffer
-            (kill-buffer export-buffer)))))))
+  (with-current-buffer (yasnippet-org-file-buffer)
+    (let ((heading (yasnippet-org-search-heading yasnippet-org-target)))
+      (unless heading
+        (error "%s is not defined at %s" yasnippet-org-target yasnippet-org-file))
+      (dolist (elm (cdr heading))
+        (yasnippet-org-1 elm nil)))))
 
 (provide 'yasnippet-org)
 
