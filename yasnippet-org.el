@@ -47,7 +47,7 @@
   :type 'string)
 
 (defcustom yasnippet-org-target "snippet"
-  "yasnippet.org h1 tag"
+  "Set yasnippet.org h1 tag"
   :group 'yasnippet-org
   :type 'string)
 
@@ -55,41 +55,29 @@
 
 (defun yasnippet-org-file-buffer ()
   "Return yasnippet-org file buffer."
-  (or (and (buffer-live-p yasnippet-org--file-buffer)
-           yasnippet-org--file-buffer)
-      (setq yasnippet-org--file-buffer
-            (find-file-noselect yasnippet-org-file))))
+  (setq yasnippet-org--file-buffer (find-file-noselect yasnippet-org-file)))
 
 (defun yasnippet-org-get-heading ()
   "Get `org' heading."
-  (with-current-buffer (yasnippet-org-file-buffer)
-    (letrec ((fn (lambda (elm)
-                   (mapcar
-                    (lambda (elm)
-                      (when (eq (car elm) 'headline)
-                        (cons
-                         (nth 1 elm)
-                         (funcall fn (cddr elm)))))
-                    elm))))
-      (funcall
-       fn
-       (org-element-contents
-        (org-element-parse-buffer 'headline))))))
+  (with-current-buffer yasnippet-org--file-buffer
+    (letrec ((fn (lambda (outer)
+                   (mapcar (lambda (inner)
+                             (when (eq (car inner) 'headline)
+                               (cons (nth 1 inner)
+                                     (funcall fn (cddr inner)))))
+                           outer))))
+      (funcall fn (org-element-contents
+                   (org-element-parse-buffer 'headline))))))
 
 (defun yasnippet-org-search-heading (queue)
   "Search QUEUE from `yasnippet-org-get-heading'."
-  (when-let* ((fn (lambda (h seq)
-                    (cl-find-if
-                     (lambda (elm)
-                       (cl-find-if
-                        (lambda (e)
-                          (string= h (plist-get e :raw-value)))
-                        elm))
-                     seq)))
-              (tmp (funcall fn queue (yasnippet-org-get-heading))))
-    tmp))
+  (cl-find-if (lambda (outer)
+                (cl-find-if (lambda (inner)
+                              (string= queue (plist-get inner :raw-value)))
+                            outer))
+              (yasnippet-org-get-heading)))
 
-(defun yasnippet-org-1 (heading parent)
+(defun yasnippet-org-1 (heading parent-directory)
   "Generate file from HEADING."
   (when-let* ((heading* (car-safe heading))
               (title (plist-get heading* :title)))
@@ -105,16 +93,16 @@
             (yasnippet-org-1 elm title)))
       (let ((src (save-excursion
                    (save-restriction
-                     (narrow-to-region
-                      (plist-get heading* :begin) (plist-get heading* :end))
+                     (narrow-to-region (plist-get heading* :begin)
+                                       (plist-get heading* :end))
                      (goto-char (point-min))
                      (let ((case-fold-search t))
                        (when (search-forward "#+begin_src" nil 'noerror)
                          (goto-char (match-beginning 0))))
                      (org-element-src-block-parser (point-max) nil)))))
         (unless src
-          (error "Node #s#%s has no src block" parent title))
-        (let* ((file (expand-file-name title (expand-file-name parent yasnippet-org-generate-root)))
+          (error "Node %s/%s has no src block" parent-directory title))
+        (let* ((file (expand-file-name title (expand-file-name parent-directory yasnippet-org-generate-root)))
                (srcbody (org-remove-indentation (plist-get (cadr src) :value))))
           (with-temp-file file
             (insert srcbody)))))))
