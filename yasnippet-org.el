@@ -46,7 +46,7 @@
   :group 'yasnippet-org
   :type 'string)
 
-(defcustom yasnippet-org-target "snippet"
+(defcustom yasnippet-org-target "snippets"
   "Set yasnippet.org h1 tag"
   :group 'yasnippet-org
   :type 'string)
