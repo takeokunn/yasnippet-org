@@ -2,7 +2,7 @@
 
 Generate yasnippet templates from org document.
 
-Inspire by org-generate
+Inspired by [[https://melpa.org/#/org-generate][org-generate]].
 
 ** Install
 
