@@ -5,12 +5,31 @@ Generate yasnippet templates from org document.
 Inspired by [[https://melpa.org/#/org-generate][org-generate]].
 
 ** Install
-
-via el-get
+*** via el-get
 
 #+begin_src emacs-lisp
   (el-get-bundle takeokunn/yasnippet-org)
   (add-to-list 'load-path (locate-user-emacs-file "el-get/yasnippet-org"))
+#+end_src
+
+*** via manually
+
+1. Clone this repo:
+
+#+begin_src shell
+  $ git clone https://github.com/takeokunn/yasnippet-org /path/to/yasnippet-org/
+#+end_src
+
+2. Add the path to your load-path in your Emacs configuration:
+
+#+begin_src emacs-lisp
+  (add-to-list 'load-path "/path/to/yasnippet-org/")
+#+end_src
+
+3. Require =yasnippet-org= in your config:
+
+#+begin_src emacs-lisp
+  (require 'yasnippet-org)
 #+end_src
 
 ** Usage
@@ -41,10 +60,12 @@ via el-get
 3. Run =M-x yasnippet-org=.
 
 #+begin_src shell
-  snippets/
-  └── go-mode
-      ├── append
-      └── case
+  $ tree ~/.emacs.d
+  .emacs.d/
+  └── snippets/
+      └── go-mode
+          ├── append
+          └── case
 #+end_src
 
 4. Run =M-x yas-reload-all= for reload yasnippet.

@@ -6,7 +6,7 @@
 ;; Version: 1.0.0
 ;; Keywords: convenience
 ;; Package-Requires: ((emacs "26.1") (org "9.5"))
-;; URL: https://github.com/takeokunn/yasnippet-org.el
+;; URL: https://github.com/takeokunn/yasnippet-org
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
