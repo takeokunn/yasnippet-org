@@ -36,7 +36,7 @@ via el-get
        ,#+end_src
 #+end_src
 
-3. Run ~M-x (yasnippet-org-generate)~.
+3. Run ~~M-x yasnippet-org~.
 
 #+begin_src shell
   snippets/
