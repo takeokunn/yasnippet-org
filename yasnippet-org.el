@@ -5,7 +5,7 @@
 ;; Author: Takeo Obara <bararararatty@gmail.com>
 ;; Version: 1.0.0
 ;; Keywords: convenience
-;; Package-Requires: ((emacs "26.1") (org "9.3") (mustache "0.23"))
+;; Package-Requires: ((emacs "26.1") (org "9.5") (mustache "0.24"))
 ;; URL: https://github.com/takeokunn/yasnippet-org.el
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -43,26 +43,8 @@
   :group 'yasnippet-org
   :type 'string)
 
-(defcustom yasnippet-org-edit-recursive-edit nil
-  "If non-nil, use `recursive-edit' for `yasnippet-org-edit'."
-  :group 'yasnippet-org
-  :type 'boolean)
-
-(defcustom yasnippet-org-with-export-as-org t
-  "If non-nil, the target's definition is exported as org beforehand.
-By exporting as org before generating it is possible to use some additional org
-features like including files, macros replacements and the noweb reference
-syntax."
-  :group 'yasnippet-org
-  :type 'boolean)
-
 (defcustom yasnippet-org-target "snippet"
   "yasnippet.org h1 tag"
-  :group 'yasnippet-org
-  :type 'boolean)
-
-(defcustom yasnippet-org-show-save-message t
-  "If non-nil, show message after save files."
   :group 'yasnippet-org
   :type 'boolean)
 
@@ -103,17 +85,6 @@ syntax."
        (org-element-contents
         (org-element-parse-buffer 'headline))))))
 
-(defun yasnippet-org-candidate ()
-  "Get `org' candidate heading for `current-buffer'."
-  (let (res)
-    (dolist (h1 (yasnippet-org-get-heading))
-      (dolist (h2 (cdr h1))
-        (push (format "%s/%s"
-                      (plist-get (car h1) :raw-value)
-                      (plist-get (car h2) :raw-value))
-              res)))
-    (nreverse res)))
-
 (defun yasnippet-org-search-heading (queue)
   "Search QUEUE from `yasnippet-org-get-heading'."
   (let* ((fn (lambda (h seq)
@@ -130,62 +101,6 @@ syntax."
     (when-let* ((tmp (funcall fn h1 (yasnippet-org-get-heading)))
                 (tmp (funcall fn h2 tmp)))
       tmp)))
-
-(defun yasnippet-org--create-string-for-export (heading)
-  "Return the string to use for export to org for HEADING in the current buffer.
-The string returned consists of the target's heading and its subtree, its parent
-heading including the content before the first child , and the content before
-the first heading.  This is needed to avoid macro replacments in parts that are
-not relevant."
-  (let* ((start (plist-get (car heading) :begin))
-         regions)
-    (save-excursion
-      (save-match-data
-        ;; Target heading and its subtree.
-        (push (cons start (plist-get (car heading) :end)) regions)
-        ;; Parent's heading and content.
-        (goto-char start)
-        (org-up-heading-safe)
-        (push (cons (point) (outline-next-heading)) regions)
-        ;; Content before first heading.
-        (goto-char (point-min))
-        (unless (org-at-heading-p)
-          (push (cons (point-min) (outline-next-heading)) regions))))
-    ;; Create the string for export.
-    (apply #'concat
-           (mapcar
-            (lambda (e) (buffer-substring-no-properties (car e) (cdr e)))
-            regions))))
-
-(defvar org-export-with-properties)
-(defun yasnippet-org--export-string-as-org (string)
-  "Export the STRING as org and return the exported string.
-Properties are exported as well."
-  (require 'ox-org)
-  (let ((org-export-with-properties t))
-    (org-export-string-as string 'org t)))
-
-(defun yasnippet-org--with-export (heading)
-  "Return a new buffer with the definition for HEADING exported as org."
-  (let* ((string-to-export (yasnippet-org--create-string-for-export heading))
-         (exported-string (yasnippet-org--export-string-as-org string-to-export))
-         (export-buffer (generate-new-buffer "*yasnippet-org-temp*")))
-    (with-current-buffer export-buffer
-      (insert exported-string)
-      (let ((org-inhibit-startup t))
-        (org-mode)))
-    export-buffer))
-
-;;;###autoload
-(defun yasnippet-org-edit ()
-  "Open `yasnippet-org-file'."
-  (interactive)
-  (if yasnippet-org-edit-recursive-edit
-      (save-window-excursion
-        (save-excursion
-          (pop-to-buffer-same-window (yasnippet-org-file-buffer))
-          (recursive-edit)))
-    (pop-to-buffer-same-window (yasnippet-org-file-buffer))))
 
 (defun yasnippet-org-1 (root heading)
   "Generate file from HEADING.
@@ -218,12 +133,10 @@ If ROOT is non-nil, omit some conditions."
                  (srcbody (org-remove-indentation (plist-get (cadr src) :value)))
                  (srcbody* (mustache-render srcbody yasnippet-org-mustache-info)))
             (with-temp-file file
-              (insert srcbody*))
-            (when yasnippet-org-show-save-message
-              (message "[yasnippet-org] Saved: %s" file)))))
+              (insert srcbody*)))))
       (dolist (elm (cdr heading))
         (let ((default-directory
-                (expand-file-name title* default-directory)))
+               (expand-file-name title* default-directory)))
           (yasnippet-org-1 nil elm))))))
 
 ;;;###autoload
@@ -236,13 +149,6 @@ If ROOT is non-nil, omit some conditions."
       (let ((heading (yasnippet-org-search-heading yasnippet-org-target)))
         (unless heading
           (error "%s is not defined at %s" yasnippet-org-target yasnippet-org-file))
-        ;; Export as org to new buffer before if needed.
-        (when yasnippet-org-with-export-as-org
-          (setq export-buffer (yasnippet-org--with-export heading))
-          (set-buffer export-buffer)
-          ;; Update heading positions.
-          (let ((yasnippet-org--file-buffer export-buffer))
-            (setq heading (yasnippet-org-search-heading yasnippet-org-target))))
         (unwind-protect
             (let* ((fn (lambda (elm)
                          (org-entry-get-multivalued-property
@@ -280,9 +186,5 @@ If ROOT is non-nil, omit some conditions."
             (kill-buffer export-buffer)))))))
 
 (provide 'yasnippet-org)
-
-;; Local Variables:
-;; indent-tabs-mode: nil
-;; End:
 
 ;;; yasnippet-org.el ends here
