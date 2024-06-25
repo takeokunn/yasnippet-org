@@ -97,21 +97,17 @@
             (yasnippet-org-1 elm title)))
       (let ((src (save-excursion
                    (save-restriction
-                     (narrow-to-region (plist-get heading* :begin)
-                                       (plist-get heading* :end))
-                     (goto-char (point-min))
                      (let ((case-fold-search t))
                        (when (search-forward "#+begin_src" nil 'noerror)
                          (goto-char (match-beginning 0))))
-                     (org-element-src-block-parser (point-max) nil)))))
+                     (org-element-property :value (org-element-at-point))))))
         (unless src
           (error "Node %s%s has no src block" parent-directory title))
         (when yasnippet-org-verbose
           (message "Generate %s%s..." parent-directory title))
-        (let* ((file (expand-file-name title (expand-file-name parent-directory yasnippet-org-generate-root)))
-               (srcbody (org-remove-indentation (plist-get (cadr src) :value))))
+        (let* ((file (expand-file-name title (expand-file-name parent-directory yasnippet-org-generate-root))))
           (with-temp-file file
-            (insert srcbody)))))))
+            (insert src)))))))
 
 ;;;###autoload
 (defun yasnippet-org ()
